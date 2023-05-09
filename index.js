@@ -1,17 +1,16 @@
 const http = require("http");
-
-const config = require("platformsh-config").config();
 const mysql = require("mysql2/promise");
 
+const dbConfig = {
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+};
+
 function openConnection() {
-  const credentials = config.credentials("database");
-  return mysql.createConnection({
-    host: credentials.host,
-    port: credentials.port,
-    user: credentials.username,
-    password: credentials.password,
-    database: credentials.path
-  });
+  return mysql.createConnection(dbConfig);
 }
 
 function createTable(connection) {
@@ -47,12 +46,12 @@ const server = http.createServer(async function(_request, response) {
   await createTable(connection);
   await insertData(connection);
 
-  const [rows] = await readData(connection); 
+  const [rows] = await readData(connection);
 
   const droppedResult = await dropTable(connection);
 
   // Make the output.
-  const outputString = `Hello, World! - A simple Node.js template for Platform.sh
+  const outputString = `Hello, World! - A simple Node.js template
 MariaDB Tests:
 * Connect and add row:
   - Row ID (1): ${rows[0].uid}
@@ -67,6 +66,7 @@ MariaDB Tests:
 });
 
 // Get PORT and start the server
-server.listen(config.port, function() {
-  console.log(`Listening on port ${config.port}`);
+const port = process.env.PORT || 3000;
+server.listen(port, function() {
+  console.log(`Listening on port ${port}`);
 });
