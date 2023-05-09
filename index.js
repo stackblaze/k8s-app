@@ -66,7 +66,7 @@ MariaDB Tests:
 });
 
 // Get PORT and start the server
-const port = process.env.PORT || 3000;
+const port = 3000;
 server.listen(port, function() {
   console.log(`Listening on port ${port}`);
 });
