@@ -92,5 +92,5 @@ const server = http.createServer(async function(request, response) {
 // Get PORT and start the server
 const port = 3000;
 server.listen(port, function() {
-  console.log(`Listening on port 3000`);
+  console.log(`Listening on port ${port}`);
 });
