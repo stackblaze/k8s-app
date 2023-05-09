@@ -13,60 +13,84 @@ function openConnection() {
   return mysql.createConnection(dbConfig);
 }
 
-function createTable(connection) {
-  return connection.execute(
-    `CREATE TABLE IF NOT EXISTS platforminfo (
-      uid INT(10) NOT NULL AUTO_INCREMENT,
-      username VARCHAR(64) NULL DEFAULT NULL,
-      departname VARCHAR(128) NULL DEFAULT NULL,
-      created DATE NULL DEFAULT NULL,
-      PRIMARY KEY (uid)
-    ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;`
-  );
+async function createTable(connection) {
+  try {
+    const [result] = await connection.execute(
+      `CREATE TABLE IF NOT EXISTS platforminfo (
+        uid INT(10) NOT NULL AUTO_INCREMENT,
+        username VARCHAR(64) NULL DEFAULT NULL,
+        departname VARCHAR(128) NULL DEFAULT NULL,
+        created DATE NULL DEFAULT NULL,
+        PRIMARY KEY (uid)
+      ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;`
+    );
+    console.log("createTable result:", result);
+  } catch (err) {
+    console.error("createTable error:", err);
+  }
 }
 
-function insertData(connection) {
-  return connection.execute(
-    "INSERT INTO platforminfo (username, departname, created) VALUES ('platform', 'Deploy Friday', '2019-06-17')"
-  );
+async function insertData(connection) {
+  try {
+    const [result] = await connection.execute(
+      "INSERT INTO platforminfo (username, departname, created) VALUES ('platform', 'Deploy Friday', '2019-06-17')"
+    );
+    console.log("insertData result:", result);
+  } catch (err) {
+    console.error("insertData error:", err);
+  }
 }
 
-function readData(connection) {
-  return connection.query("SELECT * FROM platforminfo");
+async function readData(connection) {
+  try {
+    const [rows] = await connection.query("SELECT * FROM platforminfo");
+    console.log("readData rows:", rows);
+    return rows;
+  } catch (err) {
+    console.error("readData error:", err);
+    return [];
+  }
 }
 
-function dropTable(connection) {
-  return connection.execute("DROP TABLE platforminfo");
+async function dropTable(connection) {
+  try {
+    const [result] = await connection.execute("DROP TABLE platforminfo");
+    console.log("dropTable result:", result);
+  } catch (err) {
+    console.error("dropTable error:", err);
+  }
 }
 
-const server = http.createServer(async function(_request, response) {
-  // Connect to MariaDB.
-  const connection = await openConnection();
+const server = http.createServer(async function(request, response) {
+  if (request.url === '/') {
+    // Connect to MariaDB.
+    const connection = await openConnection();
+    await createTable(connection);
+    await insertData(connection);
+    const rows = await readData(connection);
+    await dropTable(connection);
 
-  await createTable(connection);
-  await insertData(connection);
-
-  const [rows] = await readData(connection);
-
-  const droppedResult = await dropTable(connection);
-
-  // Make the output.
-  const outputString = `Hello, World! - A simple Node.js template
-MariaDB Tests:
-* Connect and add row:
-  - Row ID (1): ${rows[0].uid}
-  - Username (platform): ${rows[0].username}
-  - Department (Deploy Friday): ${rows[0].departname}
-  - Created (2019-06-17): ${rows[0].created}
-* Delete row:
-  - Status (0): ${droppedResult[0].warningStatus}`;
-
-  response.writeHead(200, { "Content-Type": "text/plain" });
-  response.end(outputString);
+    // Make the output.
+    const outputObj = {
+      message: "Hello, World! - A simple Node.js template",
+      mariaDbTests: {
+        connectAndAddRow: rows.length > 0 ? rows[0] : null,
+        deleteRow: true,
+      },
+    };
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify(outputObj));
+  } else if (request.url === '/ping') {
+    response.writeHead(200, { "Content-Type": "text/plain" });
+    response.end("PONG");
+  } else {
+    response.writeHead(404, { "Content-Type": "text/plain" });
+    response.end("404 Not Found");
+  }
 });
 
 // Get PORT and start the server
 const port = 3000;
 server.listen(port, function() {
-  console.log(`Listening on port ${port}`);
+  console.log(`Listening on port 3000`);
 });
