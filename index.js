@@ -1,96 +1,57 @@
-const http = require("http");
-const mysql = require("mysql2/promise");
+const express = require('express');
+const { Client } = require('pg');
 
-const dbConfig = {
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-};
+const app = express();
 
-function openConnection() {
-  return mysql.createConnection(dbConfig);
-}
+const port = process.env.PORT || 8000;
+const databaseUrl = process.env.DATABASE_URL;
 
-async function createTable(connection) {
-  try {
-    const [result] = await connection.execute(
-      `CREATE TABLE IF NOT EXISTS platforminfo (
-        uid INT(10) NOT NULL AUTO_INCREMENT,
-        username VARCHAR(64) NULL DEFAULT NULL,
-        departname VARCHAR(128) NULL DEFAULT NULL,
-        created DATE NULL DEFAULT NULL,
-        PRIMARY KEY (uid)
-      ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;`
-    );
-    console.log("createTable result:", result);
-  } catch (err) {
-    console.error("createTable error:", err);
-  }
-}
-
-async function insertData(connection) {
-  try {
-    const [result] = await connection.execute(
-      "INSERT INTO platforminfo (username, departname, created) VALUES ('platform', 'Deploy Friday', '2019-06-17')"
-    );
-    console.log("insertData result:", result);
-  } catch (err) {
-    console.error("insertData error:", err);
-  }
-}
-
-async function readData(connection) {
-  try {
-    const [rows] = await connection.query("SELECT * FROM platforminfo");
-    console.log("readData rows:", rows);
-    return rows;
-  } catch (err) {
-    console.error("readData error:", err);
-    return [];
-  }
-}
-
-async function dropTable(connection) {
-  try {
-    const [result] = await connection.execute("DROP TABLE platforminfo");
-    console.log("dropTable result:", result);
-  } catch (err) {
-    console.error("dropTable error:", err);
-  }
-}
-
-const server = http.createServer(async function(request, response) {
-  if (request.url === '/') {
-    // Connect to MariaDB.
-    const connection = await openConnection();
-    await createTable(connection);
-    await insertData(connection);
-    const rows = await readData(connection);
-    await dropTable(connection);
-
-    // Make the output.
-    const outputObj = {
-      message: "Hello, World! - A simple Node.js template",
-      mariaDbTests: {
-        connectAndAddRow: rows.length > 0 ? rows[0] : null,
-        deleteRow: true,
-      },
-    };
-    response.writeHead(200, { "Content-Type": "application/json" });
-    response.end(JSON.stringify(outputObj));
-  } else if (request.url === '/ping') {
-    response.writeHead(200, { "Content-Type": "text/plain" });
-    response.end("PONG");
-  } else {
-    response.writeHead(404, { "Content-Type": "text/plain" });
-    response.end("404 Not Found");
-  }
+const client = new Client({
+  connectionString: databaseUrl,
 });
 
-// Get PORT and start the server
-const port = 3000;
-server.listen(port, function() {
-  console.log(`Listening on port ${port}`);
+app.get('/', (req, res) => {
+  client.connect()
+    .then(() => console.log('Connected to PostgreSQL server'))
+    .catch((err) => console.error('Error connecting to PostgreSQL server', err));
+
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(50) NOT NULL,
+      email VARCHAR(50) NOT NULL UNIQUE,
+      password VARCHAR(50) NOT NULL
+    )
+  `;
+  client.query(createTableQuery)
+    .then(() => console.log('Created table: users'))
+    .catch((err) => console.error('Error creating table', err));
+
+  const insertDataQuery = `
+    INSERT INTO users (name, email, password)
+    VALUES 
+      ('John Doe', 'john.doe@example.com', '123456'),
+      ('Jane Doe', 'jane.doe@example.com', 'password'),
+      ('Bob Smith', 'bob.smith@example.com', 'secret')
+  `;
+  client.query(insertDataQuery)
+    .then(() => console.log('Populated table with data'))
+    .catch((err) => console.error('Error populating table with data', err));
+
+  const selectDataQuery = `
+    SELECT * FROM users LIMIT 3
+  `;
+  client.query(selectDataQuery)
+    .then((result) => {
+      console.log('Read data from table');
+      res.send(result.rows);
+    })
+    .catch((err) => console.error('Error reading data from table', err))
+    .finally(() => {
+      client.end();
+    });
+});
+
+app.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
 });
