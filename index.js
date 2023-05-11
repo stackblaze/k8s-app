@@ -6,10 +6,6 @@ const app = express();
 const port = process.env.PORT || 80;
 const databaseUrl = process.env.DATABASE_URL;
 
-const client = new Client({
-  connectionString: databaseUrl,
-});
-
 function generateFakeData() {
   const fakeData = [];
   for (let i = 0; i < 10; i++) {
@@ -22,6 +18,10 @@ function generateFakeData() {
 }
 
 app.get('/', (req, res) => {
+  const client = new Client({
+    connectionString: databaseUrl,
+  });
+
   client.connect()
     .then(() => console.log('Connected to PostgreSQL server'))
     .catch((err) => console.error('Error connecting to PostgreSQL server', err));
